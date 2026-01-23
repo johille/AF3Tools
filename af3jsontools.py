@@ -7,7 +7,7 @@ import json
 import argparse
 
 def trim_cutoff(limit_aa_length, aa_sequence):
-    "Trim the amino acid sequence to the specified cutoff length."
+    "omit sequences in the provided json file for a certain cutoff"
     pass
 
 def main():
