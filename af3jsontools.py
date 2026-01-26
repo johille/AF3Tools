@@ -5,9 +5,15 @@ AF3JsonTools - A tool to prepare and sanitize JSON files for AF3 processing.
 
 import json
 import argparse
+import os
 
-def trim_cutoff(limit_aa_length, aa_sequence):
+def trim_cutoff(limit_aa_length, aa_sequence, input_file):
     "omit sequences in the provided json file for a certain cutoff"
+    file = open(input_file, "r")
+    for line in file:
+        if ">" in line:
+            #Todo implement counting and cutting of file.
+            continue
     pass
 
 def main():
