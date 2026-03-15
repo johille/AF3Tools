@@ -12,27 +12,48 @@ from itertools import combinations
 pymol_cif_similarity.py - A tool to acquire potential binding sites in cif molecules and comparing multiple structures.
 """
 
-def write_to_csv(csv_path, chainA, chainB, pairs):
+def write_to_csv_whole(csv_path, pairs, result_pairs):
+    result_map = {tuple(pair): dist_dict for pair, dist_dict in result_pairs}
+
+    global_sum = 0.0
+    global_n = 0
+
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow([f"resi{chainA}",f"resn{chainA}",f"resi{chainB}",f"resn{chainB}",f"min_dist_{chainA}"])
-        complete_distance = 0.0
-        # sort lexicographically (resi can be string); for numeric-only resi this is fine
-        for (resiA,resnA,resiB,resnB), d in sorted(pairs.items(), key=lambda kv: (kv[0][0], kv[0][2])):
-            complete_distance += d
-            w.writerow([resiA, resnA, resiB, resnB, f"{d:.3f}"])
-        if complete_distance != 0.0:
-            average_distance = complete_distance / len(pairs)
-            print("average binding distances: ", average_distance)
-        else:
-            print("no average distances, since no binding residues in cutoff.")
+        w.writerow(["chain1", "resi1", "resn1", "chain2", "resi2", "resn2", "min_dist_A"])
 
-    print(f"Wrote {len(pairs)} residue pairs with min distance to {csv_path}")
+        for chainA, chainB in pairs:
+            dist_dict = result_map.get((chainA, chainB), {})
+
+            pair_sum = 0.0
+            pair_n = 0
+
+            # sort by residue indices (resi are strings; if numeric, this is OK; otherwise lexicographic)
+            for (resiA, resnA, resiB, resnB), d in sorted(
+                dist_dict.items(),
+                key=lambda kv: (kv[0][0], kv[0][2])
+            ):
+                w.writerow([chainA, resiA, resnA, chainB, resiB, resnB, f"{d:.3f}"])
+                pair_sum += d
+                pair_n += 1
+
+            if pair_n > 0:
+                print(f"average binding distance {chainA}-{chainB}: {pair_sum/pair_n:.3f} Å ({pair_n} contacts)")
+                global_sum += pair_sum
+                global_n += pair_n
+            else:
+                print(f"no contacts within cutoff for {chainA}-{chainB}")
+            w.writerow([])
+
+    if global_n > 0:
+        print(f"global average binding distance: {global_sum/global_n:.3f} Å ({global_n} contacts)")
+    else:
+        print("no contacts within cutoff for any chain pair")
+
+    print(f"Wrote combined CSV to {csv_path}")
 
 
 def single_result(cutoff, obj, chainA, chainB):
-    out_csv = f"/home/jhille/test_angstrom/interchain_{chainA}_{chainB}_{cutoff}_with_mindist.csv" # this should only be done, if the user wants it, otherwise output on cli
-
     selA = f"{obj} and chain {chainA}"
     selB = f"{obj} and chain {chainB}"
 
@@ -86,20 +107,20 @@ def single_result(cutoff, obj, chainA, chainB):
             key = (resiA, resnA, resiB, resnB)
             if key not in pairs or d < pairs[key]:
                 pairs[key] = d
-    #write_to_csv(out_csv, chainA, chainB, pairs)
     return pairs
 
 def single_facilitate(cif_path, cutoff, output_path):
     obj = "structure"
-
     cmd.load(cif_path, obj)
     chains = cmd.get_chains(obj)
-    pairs = combinations(chains, 2)
+    pairs = list(combinations(chains, 2))
     result_pairs = []
     for pair in pairs:
         result_pairs.append([pair, single_result(cutoff, obj, pair[0], pair[1])])
-    for pair in result_pairs:
-        write_to_csv(output_path, pair[0][0], pair[0][1], pair[1])
+    #for pair in result_pairs:
+        #write_to_csv(output_path, pair[0][0], pair[0][1], pair[1])
+    write_to_csv_whole(output_path, pairs, result_pairs)
+    #print(result_pairs)
     cmd.quit()
 
 
