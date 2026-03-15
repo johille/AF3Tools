@@ -22,7 +22,6 @@ def create_db_folder(cif_paths, output_folder):
     pass
 
 def main():
-    "Main function to facilitate command line arguments."
     argparser = argparse.ArgumentParser(description="AF3JsonTools - make a folder structure usable for the Foldseek Custom Database Command")
     argparser.add_argument("input_folder", help="Path to the Alphafold Outpuit")
     argparser.add_argument("output_folder", help="Path to the created db_folder")
