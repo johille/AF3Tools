@@ -3,32 +3,35 @@ import csv
 import math
 import argparse
 import os
+from itertools import combinations
 
 #TODO
-# which modes for executing this tool. Single structure - just get 
-# write help for arguments
+# refactor write_to_csv so it writes all content into one csv, instead of file per pair
 # "/home/jhille/ownCloud/Praktikum_Haubrock/Data/Predicted_Structures/FOS_JUN_heterodimer_targetdna_model.cif" 
 """ 
 pymol_cif_similarity.py - A tool to acquire potential binding sites in cif molecules and comparing multiple structures.
 """
 
-def single_facilitate(cif_path, cutoff):
-    obj = "structure"
+def write_to_csv(csv_path, chainA, chainB, pairs):
+    with open(csv_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow([f"resi{chainA}",f"resn{chainA}",f"resi{chainB}",f"resn{chainB}",f"min_dist_{chainA}"])
+        complete_distance = 0.0
+        # sort lexicographically (resi can be string); for numeric-only resi this is fine
+        for (resiA,resnA,resiB,resnB), d in sorted(pairs.items(), key=lambda kv: (kv[0][0], kv[0][2])):
+            complete_distance += d
+            w.writerow([resiA, resnA, resiB, resnB, f"{d:.3f}"])
+        if complete_distance != 0.0:
+            average_distance = complete_distance / len(pairs)
+            print("average binding distances: ", average_distance)
+        else:
+            print("no average distances, since no binding residues in cutoff.")
 
-    cmd.load(cif_path, obj)
-    chains = cmd.get_chains(obj)
-    print(chains)
+    print(f"Wrote {len(pairs)} residue pairs with min distance to {csv_path}")
 
-def single_result(cif_path, cutoff):
-    obj = "m"
-    chainA = "A" # the chains should probably not be hardcoded, but taken from a getter()
-    chainB = "B"
 
-    out_csv = "/home/jhille/test_angstrom/interchain_residue_pairs_5A_with_mindist.csv" # this should only be done, if the user wants it, otherwise output on cli
-
-    cmd.load(cif_path, obj)
-
-    print(cmd.get_chains(obj))
+def single_result(cutoff, obj, chainA, chainB):
+    out_csv = f"/home/jhille/test_angstrom/interchain_{chainA}_{chainB}_{cutoff}_with_mindist.csv" # this should only be done, if the user wants it, otherwise output on cli
 
     selA = f"{obj} and chain {chainA}"
     selB = f"{obj} and chain {chainB}"
@@ -40,7 +43,7 @@ def single_result(cif_path, cutoff):
     # Iterate residues in chain A (CA atoms used to enumerate residues)
     modelA = cmd.get_model(f"({selA}) and name CA")
     for a in modelA.atom:
-        resiA, resnA = a.resi, a.resn
+        resiA, resnA = a.resi, a.resn #resiA = Index, resnA = amino acid or nucleotide
 
         # selection string for residue A (all atoms of that residue)
         sel_resA = f"{obj} and chain {chainA} and resi {resiA}"
@@ -83,26 +86,27 @@ def single_result(cif_path, cutoff):
             key = (resiA, resnA, resiB, resnB)
             if key not in pairs or d < pairs[key]:
                 pairs[key] = d
+    #write_to_csv(out_csv, chainA, chainB, pairs)
+    return pairs
 
-    # Write CSV
-    with open(out_csv, "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["chainA","resiA","resnA","chainB","resiB","resnB","min_dist_A"])
-        complete_distance = 0.0
-        # sort lexicographically (resi can be string); for numeric-only resi this is fine
-        for (resiA,resnA,resiB,resnB), d in sorted(pairs.items(), key=lambda kv: (kv[0][0], kv[0][2])):
-            complete_distance += d
-            w.writerow([chainA, resiA, resnA, chainB, resiB, resnB, f"{d:.3f}"])
-        average_distance = complete_distance / len(pairs)
-        print(average_distance)
+def single_facilitate(cif_path, cutoff, output_path):
+    obj = "structure"
 
-    print(f"Wrote {len(pairs)} residue pairs with min distance to {out_csv}")
+    cmd.load(cif_path, obj)
+    chains = cmd.get_chains(obj)
+    pairs = combinations(chains, 2)
+    result_pairs = []
+    for pair in pairs:
+        result_pairs.append([pair, single_result(cutoff, obj, pair[0], pair[1])])
+    for pair in result_pairs:
+        write_to_csv(output_path, pair[0][0], pair[0][1], pair[1])
     cmd.quit()
 
 
 def main():
     argparser = argparse.ArgumentParser(description="Pymol_Cif_Similarity - A tool to acquire potential binding sites in cif molecules and comparing multiple structures.")
     argparser.add_argument("-c", "--cutoff", type=float, default=5.0, required=False)
+    argparser.add_argument("-o", "--output_path", type=str, required=True)
     mode = argparser.add_subparsers(dest="cmd", required=True)
 
     single = mode.add_parser("single")
@@ -115,7 +119,7 @@ def main():
     args = argparser.parse_args()
 
     if args.cmd == "single":
-        single_facilitate(args.cif, args.cutoff)
+        single_facilitate(args.cif, args.cutoff, args.output_path)
     elif args.cmd == "compare":
         r_cif = args.reference_cif
         input_folder = args.input_folder
