@@ -6,7 +6,8 @@ import os
 from itertools import combinations
 
 #TODO
-# refactor write_to_csv so it writes all content into one csv, instead of file per pair
+# implement compare mode
+# split calculating of things and writing of csv into 2 functions for more modularity
 # "/home/jhille/ownCloud/Praktikum_Haubrock/Data/Predicted_Structures/FOS_JUN_heterodimer_targetdna_model.cif" 
 """ 
 pymol_cif_similarity.py - A tool to acquire potential binding sites in cif molecules and comparing multiple structures.
@@ -41,9 +42,9 @@ def write_to_csv_whole(csv_path, pairs, result_pairs):
                 print(f"average binding distance {chainA}-{chainB}: {pair_sum/pair_n:.3f} Å ({pair_n} contacts)")
                 global_sum += pair_sum
                 global_n += pair_n
+                w.writerow([])
             else:
                 print(f"no contacts within cutoff for {chainA}-{chainB}")
-            w.writerow([])
 
     if global_n > 0:
         print(f"global average binding distance: {global_sum/global_n:.3f} Å ({global_n} contacts)")
