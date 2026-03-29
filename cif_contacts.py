@@ -238,8 +238,6 @@ def compare_facilitate(cif_path, cutoff, input_folder ,output_path):
 
             for pair in pairs:
                 result_pairs.append([pair, get_binding_pairs(cutoff, structure, pair[0], pair[1])])
-                print(pair[0], pair[1])
-                print(list(same_residues.keys()))
                 if pair[0] in same_residues and pair[1] in same_residues:
                     # find corresponding reference pair (by mapped chain names)
                     rA = same_residues[pair[0]]
