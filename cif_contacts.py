@@ -209,7 +209,6 @@ def compare_facilitate(cif_path, cutoff, input_folder ,output_path):
     for chain in ref_chains:
         ref_chain_residues.append(get_chain_residues(ref_obj, chain))
 
-    print(ref_chain_residues)
     ref_pairs = list(combinations(ref_chains, 2))
     ref_result_pairs = []
 
