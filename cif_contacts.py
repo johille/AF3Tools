@@ -6,7 +6,7 @@ import os
 from itertools import combinations
 
 #TODO
-# refactor code for readability and expandiblity + write a function that writes the results from compare mode to csv.
+# refactor code for readability and expandiblity + csv functionality for compare mode.
 # "/home/jhille/ownCloud/Praktikum_Haubrock/Data/Predicted_Structures/FOS_JUN_heterodimer_targetdna_model.cif" 
 """ 
 pymol_cif_similarity.py - A tool to acquire potential binding sites in cif molecules and comparing multiple structures.
@@ -32,18 +32,18 @@ def write_to_csv_whole(csv_path, pairs, result_pairs):
 def get_chain_residues(obj, chain):
     # Prefer CA for amino acids, but nucleotides don't have CA atoms.
     # Try a sequence of fallbacks so DNA/RNA chains are handled too.
-    # 1) CA for proteins
+    # CA for proteins
     model = cmd.get_model(f"({obj}) and chain {chain} and name CA")
     if model.atom:
         return [(a.resi, a.resn) for a in model.atom]
 
-    # 2) P for nucleic acids (phosphate atom)
+    #P for nucleic acids (phosphate atom)
     model = cmd.get_model(f"({obj}) and chain {chain} and name P")
     if model.atom:
         return [(a.resi, a.resn) for a in model.atom]
 
-    # 3) Generic fallback: iterate all atoms in the chain and record
-    #    the first seen atom for each residue to preserve residue order.
+    # Generic fallback: iterate all atoms in the chain and record
+    # the first seen atom for each residue to preserve residue order.
     model = cmd.get_model(f"({obj}) and chain {chain}")
     seen = set()
     residues = []
@@ -90,12 +90,8 @@ def get_binding_pairs(cutoff, obj, chainA, chainB):
     selA = f"{obj} and chain {chainA}"
     selB = f"{obj} and chain {chainB}"
 
-    # Preload all atoms from chainB for quick index->atom lookup
-    # We'll still only evaluate pairs that are within cutoff (from cmd.index query).
     pairs = {}  # (resiA,resnA,resiB,resnB) -> min_dist
 
-    # Iterate residues in chain A using the residue-list helper so we
-    # handle proteins (CA) and nucleic acids (P) transparently.
     residuesA = get_chain_residues(obj, chainA)
 
     for resiA, resnA in residuesA:
@@ -112,9 +108,6 @@ def get_binding_pairs(cutoff, obj, chainA, chainB):
         cand_resB = set()
         # Use the object name returned by cmd.index to fetch the correct atom
         for (obj_name, idx) in near_idx:
-            # obj_name is the object that contains this atom index; include it
-            # in the selection so we don't accidentally retrieve the wrong
-            # atom when multiple objects are loaded.
             m = cmd.get_model(f"({obj_name}) and index {idx}")
             if not m.atom:
                 # fallback to index-only (should be rare)
@@ -122,7 +115,6 @@ def get_binding_pairs(cutoff, obj, chainA, chainB):
             b = m.atom[0]
             cand_resB.add((b.resi, b.resn))
 
-        # Get coordinates for all atoms in residue A once
         atomsA = cmd.get_model(sel_resA).atom
         coordsA = [(at.coord[0], at.coord[1], at.coord[2]) for at in atomsA]
 
@@ -162,19 +154,12 @@ def single_facilitate(cif_path, cutoff, output_path):
         result_pairs.append([pair, get_binding_pairs(cutoff, obj, pair[0], pair[1])])
 
     _ = get_average_dist(pairs, result_pairs)
-    write_to_csv_whole(output_path, pairs, result_pairs)
+    if cif_path is not None:
+        write_to_csv_whole(output_path, pairs, result_pairs)
 
     cmd.quit()
 
 def compare_result_pairs(result_pair1, result_pair2):
-    """Compare two results from `get_binding_pairs` and print common bindings.
-
-    Each argument may be either a dict returned by `get_binding_pairs` or a
-    (pair, dict) list/tuple where `pair` is the chain pair (chainA, chainB)
-    and `dict` is the mapping (resiA,resnA,resiB,resnB) -> distance.
-    The function will detect if the chain order is swapped between the two
-    inputs (e.g. (A,B) vs (B,A)) and account for that by swapping keys.
-    """
     def unpack(r):
         if isinstance(r, (list, tuple)) and len(r) == 2 and isinstance(r[1], dict):
             return tuple(r[0]), r[1]
@@ -213,7 +198,6 @@ def compare_result_pairs(result_pair1, result_pair2):
     if not common:
         print("  (no common binding pairs found)")
 
-    # Return a small summary for programmatic use
     return {"common_count": len(common), "ref_total": len(keys1), "common_pairs": sorted(list(common))}
 
 def compare_facilitate(cif_path, cutoff, input_folder ,output_path):
@@ -280,7 +264,7 @@ def compare_facilitate(cif_path, cutoff, input_folder ,output_path):
 def main():
     argparser = argparse.ArgumentParser(description="Pymol_Cif_Similarity - A tool to acquire potential binding sites in cif molecules and comparing multiple structures.")
     argparser.add_argument("-c", "--cutoff", type=float, default=5.0, required=False)
-    argparser.add_argument("-o", "--output_path", type=str, required=True)
+    argparser.add_argument("-o", "--output_path", type=str, default=None, required=False)
     mode = argparser.add_subparsers(dest="cmd", required=True)
 
     single = mode.add_parser("single")
@@ -296,8 +280,6 @@ def main():
         single_facilitate(args.cif, args.cutoff, args.output_path)
     elif args.cmd == "compare":
         compare_facilitate(args.reference_cif, args.cutoff, args.input_folder ,args.output_path)
-        #r_cif = args.reference_cif
-        #input_folder = args.input_folder
 
 if __name__ == "__main__":
     main()
