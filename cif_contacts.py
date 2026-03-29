@@ -80,9 +80,11 @@ def get_average_dist(pairs, result_pairs):
 
     if global_n > 0:
         print(f"global average binding distance: {global_sum/global_n:.3f} Å ({global_n} contacts)")
+        print("\n")
         return global_sum/global_n, global_n
     else:
         print("no contacts within cutoff for any chain pair")
+        print("\n")
         return 0.0, 0.0
 
 
@@ -198,10 +200,12 @@ def compare_result_pairs(result_pair1, result_pair2):
     if not common:
         print("  (no common binding pairs found)")
 
-    return {"common_count": len(common), "ref_total": len(keys1), "common_pairs": sorted(list(common))}
+    #return {"common_count": len(common), "ref_total": len(keys1), "common_pairs": sorted(list(common))}
+    return {"common_count": len(common), "ref_total": len(keys1)}
 
 def compare_facilitate(cif_path, cutoff, input_folder ,output_path):
     ref_obj = "reference_structure"
+    print("Binding Distance for Reference: ", cif_path.split("/")[-1])
     cmd.load(cif_path, ref_obj)
     ref_chains = cmd.get_chains(ref_obj)
     ref_chain_residues = []
@@ -225,6 +229,7 @@ def compare_facilitate(cif_path, cutoff, input_folder ,output_path):
         same_residues = {}
         if ".cif" in structure:
             cmd.load(input_folder + "/" + structure, structure)
+            print("Binding Distance for: ", structure)
             chains = cmd.get_chains(structure)
             # build list of (chain, residues) so we can append the correct chain
             chain_residues = [(chain, get_chain_residues(structure, chain)) for chain in chains]
