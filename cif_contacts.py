@@ -154,7 +154,7 @@ def single_facilitate(cif_path, cutoff, output_path):
         result_pairs.append([pair, get_binding_pairs(cutoff, obj, pair[0], pair[1])])
 
     _ = get_average_dist(pairs, result_pairs)
-    if cif_path is not None:
+    if output_path is not None:
         write_to_csv_whole(output_path, pairs, result_pairs)
 
     cmd.quit()
